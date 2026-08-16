@@ -53,6 +53,40 @@ architecture mismatch. Flagging clearly rather than letting a flatpak-Wine
 user hit confusing failures and assume the ucrtbase/tty fixes are broken
 when the real issue is upstream of them.
 
+## New finding: unpinned `mt5linux` breaks on the script's own target Python version
+
+2026-08-16, reported by a user of this toolkit (`Wine 11.15 Staging`, native
+`winehq-staging` apt package — not one of the two configurations above).
+Steps [1/5]-[4/5] completed cleanly (consistent with the "none of the three
+original bugs occur on Wine 11.x" finding above), but step [5/5]'s
+verification failed:
+
+```
+File "C:\Python310\lib\site-packages\mt5linux\metatrader5.py", line 1755
+    code = f'mt5.copy_rates_from("{symbol}", {timeframe}, {
+           ^
+SyntaxError: unterminated string literal (detected at line 1755)
+```
+
+Root cause, confirmed by reading the actual failing source line: current
+PyPI `mt5linux` (1.1.1, as of this report) uses a multi-line expression
+inside an f-string's `{...}` — valid only on **Python 3.12+** (PEP 701's
+relaxed f-string grammar). This script installs **Python 3.10.11** — what
+it was actually tested against, paired with `mt5linux 1.0.3` per its own
+header comment. Since `pip install mt5linux` (no version pin) always grabs
+whatever's newest on PyPI, the install step "succeeds" and the failure only
+surfaces one step later, on an unrelated-looking error deep in a dependency.
+
+**Fix applied**: pin `mt5linux==1.0.3` in the script's step [4/5] install
+command, matching the version already named in the script's own header.
+Re-verified end-to-end after the fix: exit code 0, `mt5linux OK,
+MetaTrader5 OK`, and a real bridge connection (`mt5.initialize()` →
+`True`, real `account_info()` returned) confirmed working through it.
+
+This doesn't fix itself if `mt5linux` publishes another release — the pin
+just freezes to the version this toolkit is actually verified against.
+Revisit if intentionally testing/supporting a newer Python + mt5linux pair.
+
 ## What's still genuinely untested
 
 - Any distro other than Debian 12 (Ubuntu, Fedora, Arch — package names
