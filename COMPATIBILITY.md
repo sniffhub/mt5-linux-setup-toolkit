@@ -53,6 +53,36 @@ architecture mismatch. Flagging clearly rather than letting a flatpak-Wine
 user hit confusing failures and assume the ucrtbase/tty fixes are broken
 when the real issue is upstream of them.
 
+## Upgrading `mt5linux` after initial setup — restart the bridge server too
+
+Real-world gotcha hit running an actual live bot on top of this toolkit's
+setup (2026-08-16): if you bump `mt5linux`'s version on a system that
+already has the Wine-side bridge server (`python -m mt5linux --host ...`)
+running, the already-running process keeps its old `rpyc` (mt5linux's RPC
+layer) loaded in memory. A native-Python client built against the newer
+mt5linux/rpyc then talks a mismatched wire protocol and fails with a
+confusing, unrelated-looking error:
+
+```
+invalid message type: 18
+```
+
+**Fix**: restart the Wine-side bridge server process after upgrading
+`mt5linux` on either side — `pip install --upgrade mt5linux` alone is not
+enough, the already-running server has to actually reload the new code.
+
+If the bridge runs under a supervisor with a crash-loop guard (e.g. systemd
+`Restart=on-failure` + `StartLimitBurst`), treat the upgrade + restart as
+one deliberate action, not several rapid manual restarts while debugging —
+repeated restarts inside the burst window will trip the limit and the
+service will refuse to start again until `StartLimitIntervalSec` elapses
+(working as intended, but easy to mistake for a new bug mid-debug).
+
+This is part of why this toolkit pins to `mt5linux==1.0.3` rather than
+tracking latest (see the finding above) — if you do intentionally move to a
+newer pinned version, this restart step is the other half of doing it
+safely.
+
 ## What's still genuinely untested
 
 - Any distro other than Debian 12 (Ubuntu, Fedora, Arch — package names
