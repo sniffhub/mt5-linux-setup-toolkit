@@ -102,7 +102,14 @@ else
 fi
 
 echo "==> [4/5] Installing mt5linux + MetaTrader5 + pywin32 into the Wine Python..."
-wine_python -m pip install --upgrade pip mt5linux MetaTrader5 pywin32
+# mt5linux pinned to 1.0.3 (the version this script/header claims to be
+# tested against, matching Python 3.10.11). Verified for real: current PyPI
+# mt5linux (1.1.1) uses a multi-line f-string expression -- valid only on
+# Python 3.12+ (PEP 701) -- which is a SyntaxError under the 3.10.11 this
+# script installs. Unpinned `pip install mt5linux` silently grabs whatever
+# is newest on PyPI, so without this pin the install "succeeds" and step
+# [5/5]'s verification then fails on an unrelated, confusing error.
+wine_python -m pip install --upgrade pip "mt5linux==1.0.3" MetaTrader5 pywin32
 
 echo "==> [5/5] Verifying the install..."
 wine_python -c "import mt5linux, MetaTrader5; print('mt5linux OK, MetaTrader5 OK')"
