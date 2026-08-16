@@ -74,7 +74,10 @@ Python:
 # Wine side (run once, leave running):
 script -qec 'WINEPREFIX=/path/to/prefix wine "C:\Python310\python.exe" -m mt5linux --host localhost -p 18812' /dev/null &
 
-# Native Linux side (pip install mt5linux there too):
+# Native Linux side (pin the version to match the Wine side — see
+# COMPATIBILITY.md's "Upgrading mt5linux" note for why an unpinned
+# install is risky):
+pip install "mt5linux==1.0.3"
 python3 -c "
 from mt5linux import MetaTrader5
 mt5 = MetaTrader5(host='localhost', port=18812)
